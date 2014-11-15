@@ -19,10 +19,10 @@
 #define STANDBY_SIZE 8
 
 typedef struct pool_task{
-    void (*function)(void *);
-    void *argument;
-    struct pool_task *next;
-    struct pool_task *prev;
+  void (*function)(void *);
+  void *argument;
+  struct pool_task *next;
+  struct pool_task *prev;
 } pool_task_t;
 
 
@@ -55,6 +55,9 @@ void append_list(pool_task_t *newNode, pool_task_t *head) {
 }
 
 void remove_list_node(pool_task_t *node, pool_task_t *head) {
+  node->prev->next = node->next;
+  node->next->prev = node->prev;
+
 }
 
 
@@ -81,7 +84,7 @@ pool_t *pool_create(int queue_size, int num_threads)
   pool->thread_count = num_threads;
 
   pthread_attr_init(&attr);
-  
+
   for(i=0; i<MAX_THREADS; i++) {
     pthread_create(pool->threads+i, &attr, thread_do_work, NULL);
   }
@@ -97,14 +100,15 @@ pool_t *pool_create(int queue_size, int num_threads)
  */
 int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
 {
-    int err = 0;
-    pool_task_t *curr;
+  int err = 0;
+  pool_task_t *curr;
 
-    curr = pool->queue;
-    while(curr != NULL) {
-      pool->queue->next;
-        
-    return err;
+  curr = pool->queue;
+  while(curr != NULL) {
+    pool->queue->next;
+  }
+
+  return err;
 }
 
 
@@ -115,9 +119,9 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
  */
 int pool_destroy(pool_t *pool)
 {
-    int err = 0;
- 
-    return err;
+  int err = 0;
+
+  return err;
 }
 
 
@@ -129,10 +133,10 @@ int pool_destroy(pool_t *pool)
 static void *thread_do_work(void *pool)
 { 
 
-    while(1) {
-        
-    }
+  while(1) {
 
-    pthread_exit(NULL);
-    return(NULL);
+  }
+
+  pthread_exit(NULL);
+  return(NULL);
 }

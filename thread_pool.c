@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 #include "thread_pool.h"
-#include "semaphore.c"
+#include "semaphore.h"
 
 /**
  *  @struct threadpool_task
@@ -27,9 +27,7 @@ typedef struct pool_task{
 
 
 struct pool_t {
-  pthread_mutex_t lock;
-  pthread_cond_t notify;
-  m_sem_t s;
+  m_sem_t *s;
   pthread_t *threads;
   pool_task_t *queue;
   int thread_count;
@@ -37,6 +35,8 @@ struct pool_t {
 };
 
 static void *thread_do_work(void *pool);
+
+
 
 
 void insert_list(pool_task_t *newNode, pool_task_t *head) {
@@ -61,6 +61,8 @@ void remove_list_node(pool_task_t *node, pool_task_t *head) {
 }
 
 
+
+
 /*
  * Create a threadpool, initialize variables, etc
  *
@@ -71,26 +73,35 @@ pool_t *pool_create(int queue_size, int num_threads)
   pthread_attr_t attr;
 
   int i;
+  
+  if(queue_size <= 0)
+    queue_size = 10000;
+  if(num_threads <= 0)
+    num_threads = MAX_THREADS;
 
   struct pool_t *pool = (struct pool_t*)malloc(sizeof(struct pool_t));
-  pool->threads = (pthread_t*)malloc(MAX_THREADS * sizeof(pthread_t));
+  pool->threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
   pool->queue = (pool_task_t*)malloc(sizeof(pool_task_t));
   pool->queue->function = NULL;
   pool->queue->argument = NULL;
   pool->queue->next = NULL;
-  pool->queue->prev = NULL;
+  pool->queue->prev = pool->queue;
+
+  pool->s = (struct m_sem*)malloc(sizeof(struct m_sem));
+
+  sem_init(pool->s, 0, 1);
 
   pool->task_queue_size_limit = queue_size;
   pool->thread_count = num_threads;
 
   pthread_attr_init(&attr);
 
-  for(i=0; i<MAX_THREADS; i++) {
-    pthread_create(pool->threads+i, &attr, thread_do_work, NULL);
+  for(i=0; i<pool->thread_count; i++) {
+    pthread_create(pool->threads+i, &attr, thread_do_work, (void*)pool);
   }
 
 
-  return NULL;
+  return pool;
 }
 
 
@@ -103,10 +114,15 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
   int err = 0;
   pool_task_t *curr;
 
-  curr = pool->queue;
-  while(curr != NULL) {
-    pool->queue->next;
-  }
+  curr = (pool_task_t*)malloc(sizeof(pool_task_t));
+  curr->argument = malloc(sizeof(int));
+
+  curr->function = function;
+
+  (curr->argument) = (int*)argument;
+
+  append_list(curr, pool->queue);
+
 
   return err;
 }
@@ -120,6 +136,17 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
 int pool_destroy(pool_t *pool)
 {
   int err = 0;
+  void *status;
+
+  int i;
+
+  for(i=0; i<pool->thread_count; i++) {
+    pthread_join(*(pool->threads+i), &status);
+  }
+
+  free(pool->s);
+  free(pool);
+  
 
   return err;
 }
@@ -132,8 +159,25 @@ int pool_destroy(pool_t *pool)
  */
 static void *thread_do_work(void *pool)
 { 
+  pool_task_t *currT;
+
+  currT = NULL;
 
   while(1) {
+    sem_wait(((struct pool_t*)pool)->s);
+
+    if(((struct pool_t*)pool)->queue->next != NULL) {
+      currT = ((struct pool_t*)pool)->queue->next;
+//      remove_list_node(currT, ((struct pool_t*)pool)->queue);
+    }
+
+    sem_post(((struct pool_t*)pool)->s);
+    
+    if(currT != NULL) {
+      (currT->function)((currT->argument));
+
+      free(currT);
+    }
 
   }
 

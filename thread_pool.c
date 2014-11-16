@@ -81,7 +81,7 @@ pool_t *pool_create(int queue_size, int num_threads)
   int i;
   
   if(queue_size <= 0)
-    queue_size = 10000;
+    queue_size = 50000;
   if(num_threads <= 0)
     num_threads = MAX_THREADS;
 

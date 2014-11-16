@@ -77,7 +77,6 @@ void remove_list_node(pool_task_t *node, pool_task_t *head) {
  */
 pool_t *pool_create(int queue_size, int num_threads)
 {
-  pthread_t tid;
   pthread_attr_t attr;
 
   int i;

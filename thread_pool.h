@@ -1,7 +1,12 @@
 #ifndef _THREADPOOL_H_
 #define _THREADPOOL_H_
 
+#include <pthread.h>
+
+
 typedef struct pool_t pool_t;
+
+extern pthread_mutex_t seat_lock;
 
 
 pool_t *pool_create(int thread_count, int queue_size);

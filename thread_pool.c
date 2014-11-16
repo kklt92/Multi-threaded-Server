@@ -19,6 +19,8 @@
 #define MAX_THREADS 20
 #define STANDBY_SIZE 8
 
+pthread_mutex_t seat_lock;
+
 typedef struct pool_task{
   void (*function)(void *);
   int argument;
@@ -97,6 +99,8 @@ pool_t *pool_create(int queue_size, int num_threads)
 
   sem_init(pool->s, 0, 1);
 
+  pthread_mutex_init(&seat_lock, NULL);
+
   pool->task_queue_size_limit = queue_size;
   pool->thread_count = num_threads;
 
@@ -154,6 +158,8 @@ int pool_destroy(pool_t *pool)
 
   free(pool->s);
   free(pool);
+
+  pthread_mutex_destroy(&seat_lock);
   
 
   return err;

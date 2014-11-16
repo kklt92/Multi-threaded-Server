@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "thread_pool.h"
 #include "semaphore.h"
@@ -20,7 +21,7 @@
 
 typedef struct pool_task{
   void (*function)(void *);
-  void *argument;
+  int argument;
   struct pool_task *next;
   struct pool_task *prev;
 } pool_task_t;
@@ -56,7 +57,12 @@ void append_list(pool_task_t *newNode, pool_task_t *head) {
 
 void remove_list_node(pool_task_t *node, pool_task_t *head) {
   node->prev->next = node->next;
-  node->next->prev = node->prev;
+  if(head->prev == node) {
+    head->prev = node->prev;
+  }
+  else {
+    node->next->prev = node->prev;
+  }
 
 }
 
@@ -83,7 +89,7 @@ pool_t *pool_create(int queue_size, int num_threads)
   pool->threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
   pool->queue = (pool_task_t*)malloc(sizeof(pool_task_t));
   pool->queue->function = NULL;
-  pool->queue->argument = NULL;
+  pool->queue->argument = 0;
   pool->queue->next = NULL;
   pool->queue->prev = pool->queue;
 
@@ -115,11 +121,11 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
   pool_task_t *curr;
 
   curr = (pool_task_t*)malloc(sizeof(pool_task_t));
-  curr->argument = malloc(sizeof(int));
+//  curr->argument = malloc(sizeof(int));
 
   curr->function = function;
 
-  (curr->argument) = (int*)argument;
+  curr->argument = *(int*)argument;
 
   append_list(curr, pool->queue);
 
@@ -166,16 +172,22 @@ static void *thread_do_work(void *pool)
   while(1) {
     sem_wait(((struct pool_t*)pool)->s);
 
+    currT = NULL;
     if(((struct pool_t*)pool)->queue->next != NULL) {
       currT = ((struct pool_t*)pool)->queue->next;
-//      remove_list_node(currT, ((struct pool_t*)pool)->queue);
+      remove_list_node(currT, ((struct pool_t*)pool)->queue);
     }
 
     sem_post(((struct pool_t*)pool)->s);
     
     if(currT != NULL) {
-      (currT->function)((currT->argument));
-
+//      if(currT->function == NULL || currT->argument == 0) {
+//        printf("ERROR: currT->function: %x, argument: %d\n", currT->function, currT->argument);
+//      }
+//      else {
+        (currT->function)(&(currT->argument));
+//        printf("currT->function: %x, argument: %d\n", currT->function, currT->argument);
+//      }
       free(currT);
     }
 

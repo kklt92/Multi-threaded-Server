@@ -15,6 +15,7 @@ void list_seats(char* buf, int bufsize)
 {
   seat_t* curr = seat_header;
   int index = 0;
+  pthread_mutex_lock(&seat_lock);
   while(curr != NULL && index < bufsize+ strlen("%d %c,"))
   {
     int length = snprintf(buf+index, bufsize-index, 
@@ -23,6 +24,7 @@ void list_seats(char* buf, int bufsize)
       index = index + length;
     curr = curr->next;
   }
+  pthread_mutex_unlock(&seat_lock);
   if (index > 0)
     snprintf(buf+index-1, bufsize-index-1, "\n");
   else

@@ -9,7 +9,41 @@
 
 seat_t* seat_header = NULL;
 
+static struct stdlist unused_list;
+
+static struct stdlist *req_buffer = NULL;
+
 char seat_state_to_char(seat_state_t);
+
+static int standby_size = 0;
+
+static pthread_mutex_t stdlist_lock;
+
+static void list_append(struct stdlist *item, struct stdlist *header) {
+  item->prev = header->prev;
+  item->next = header;
+  header->prev = item;
+  item->prev->next = item;
+}
+
+static void list_remove(struct stdlist *item) {
+  item->prev->next = item->next;
+  item->next->prev = item->prev;
+}
+
+static struct stdlist *get_unused_item() {
+  struct stdlist *item = unused_list.next;
+  if(item != &unused_list) {
+    list_remove(item);
+  }else {
+    item = NULL;
+  }
+  return item;
+}
+
+static void put_unused_item(struct stdlist *item) {
+  list_append(item, &unused_list);
+}
 
 void list_seats(char* buf, int bufsize)
 {
@@ -48,7 +82,19 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
       }
       else
       {
-        snprintf(buf, bufsize, "Seat unavailable\n\n");
+        pthread_mutex_lock(&stdlist_lock);
+        if(standby_size && curr->state == PENDING) {
+          struct stdlist *item = get_unused_item();
+          item->user_id = customer_id;
+          list_append(item, &curr->stdlist_pending);
+          standby_size--;
+
+          snprintf(buf, bufsize, "Seat unavailable\n\n");
+        }else {
+
+          snprintf(buf, bufsize, "Seat unavailable\n\n");
+        }
+        pthread_mutex_unlock(&stdlist_lock);
       }
       pthread_mutex_unlock(&seat_lock);
 
@@ -73,6 +119,19 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
         snprintf(buf, bufsize, "Seat confirmed: %d %c\n\n",
             curr->id, seat_state_to_char(curr->state));
         curr->state = OCCUPIED;
+
+
+        pthread_mutex_lock(&stdlist_lock);
+        struct stdlist *item = curr->stdlist_pending.next;
+        struct stdlist *next;
+        while(item != &curr->stdlist_pending) {
+          next = item->next;
+          list_remove(item);
+          put_unused_item(item);
+          standby_size++;
+          item = next;
+        }
+        pthread_mutex_unlock(&stdlist_lock);
       }
       else if(curr->customer_id != customer_id )
       {
@@ -107,7 +166,19 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
       {
         snprintf(buf, bufsize, "Seat request cancelled: %d %c\n\n",
             curr->id, seat_state_to_char(curr->state));
-        curr->state = AVAILABLE;
+
+        pthread_mutex_lock(&stdlist_lock);
+        struct stdlist *item = curr->stdlist_pending.next;
+        if(item != &curr->stdlist_pending) {
+          curr->customer_id = item->user_id;
+          list_remove(item);
+          put_unused_item(item);
+          standby_size++;
+        }else {
+          curr->state = AVAILABLE;
+        }
+        pthread_mutex_unlock(&stdlist_lock);
+
       }
       else if(curr->customer_id != customer_id )
       {
@@ -128,7 +199,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
   return;
 }
 
-void load_seats(int number_of_seats)
+void load_seats(int number_of_seats, int sb_size)
 {
   seat_t* curr = NULL;
   int i;
@@ -140,6 +211,9 @@ void load_seats(int number_of_seats)
     temp->state = AVAILABLE;
     temp->next = NULL;
 
+    temp->stdlist_pending.prev = &temp->stdlist_pending;
+    temp->stdlist_pending.next = &temp->stdlist_pending;
+
     if (seat_header == NULL)
     {
       seat_header = temp;
@@ -149,6 +223,16 @@ void load_seats(int number_of_seats)
       curr-> next = temp;
     }
     curr = temp;
+  }
+
+  standby_size = sb_size;
+
+  pthread_mutex_init(&stdlist_lock, NULL);
+
+  unused_list.next = unused_list.prev = &unused_list;
+  req_buffer = (struct stdlist*)malloc(sizeof(struct stdlist) *sb_size);
+  for(i=0; i<sb_size; i++) {
+    list_append(&req_buffer[i], &unused_list);
   }
 }
 
@@ -161,6 +245,7 @@ void unload_seats()
     curr = curr->next;
     free(temp);
   }
+  free(req_buffer);
 }
 
 char seat_state_to_char(seat_state_t state)

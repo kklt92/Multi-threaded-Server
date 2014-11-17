@@ -31,6 +31,7 @@ typedef struct pool_task{
 
 struct pool_t {
   m_sem_t *s;
+  pthread_mutex_t lock;
   pthread_t *threads;
   pool_task_t *queue;
   int thread_count;
@@ -95,6 +96,7 @@ pool_t *pool_create(int queue_size, int num_threads)
   pool->queue->prev = pool->queue;
 
   pool->s = (struct m_sem*)malloc(sizeof(struct m_sem));
+  pthread_mutex_init(&pool->lock, NULL);
 
   sem_init(pool->s, 0, 1);
 
@@ -130,7 +132,12 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
 
   curr->argument = *(int*)argument;
 
+
+  pthread_mutex_lock(&pool->lock);
   append_list(curr, pool->queue);
+
+  sem_post(((struct pool_t*)pool)->s);
+  pthread_mutex_unlock(&pool->lock);
 
 
   return err;
@@ -178,11 +185,13 @@ static void *thread_do_work(void *pool)
   while(1) {
     sem_wait(((struct pool_t*)pool)->s);
 
+    pthread_mutex_lock(&((struct pool_t*)pool)->lock);
     currT = NULL;
     if(((struct pool_t*)pool)->queue->next != NULL) {
       currT = ((struct pool_t*)pool)->queue->next;
       remove_list_node(currT, ((struct pool_t*)pool)->queue);
     }
+    pthread_mutex_unlock(&((struct pool_t*)pool)->lock);
 
     sem_post(((struct pool_t*)pool)->s);
     

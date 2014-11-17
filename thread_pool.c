@@ -160,6 +160,7 @@ int pool_destroy(pool_t *pool)
   for(i=0; i<pool->thread_count; i++) {
     pthread_cancel(*(pool->threads+i));
   }
+  pthread_mutex_destroy(&pool->lock);
 
   free(pool->s);
   free(pool);

@@ -87,7 +87,7 @@ int main(int argc,char *argv[])
     while(1)
     {
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-        printf("");
+        printf("\n");
         
         // single threaded
         //handle_connection(&connfd);

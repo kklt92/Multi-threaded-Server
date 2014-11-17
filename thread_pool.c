@@ -145,7 +145,6 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
 int pool_destroy(pool_t *pool)
 {
   int err = 0;
-  void *status;
 
   int i;
   

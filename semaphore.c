@@ -38,7 +38,7 @@ int sem_post(m_sem_t *s)
 
   s->value++;
 
-  pthread_cond_broadcast(&(s->notify));
+  pthread_cond_signal(&(s->notify));
 
   pthread_mutex_unlock(&(s->lock));
   return 0;

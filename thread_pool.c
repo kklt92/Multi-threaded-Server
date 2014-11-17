@@ -152,7 +152,7 @@ int pool_destroy(pool_t *pool)
   printf("Running destroy\n");
 
   for(i=0; i<pool->thread_count; i++) {
-    pthread_join(*(pool->threads+i), &status);
+    pthread_cancel(*(pool->threads+i));
   }
 
   free(pool->s);

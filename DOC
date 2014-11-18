@@ -1,0 +1,16 @@
+Implemented:    Semaphores
+                Thread Pools
+                Standby List
+		Priority Scheduling
+
+====== Semaphores ======
+Semaphores are useful tool in the prevention of race conditions. The value of the semaphore is the number of units of the resource that are currently available.
+
+====== Thread Pools ======
+Thread pools are for controling the maximum number of threads run by your program. When the program begins, a fixed number of threads are created. Once a thread completes its work, it returns to the pool. If there are no available threads the incoming work waits until one becomes available.
+
+====== Standby List ======
+Standby list is for passengers within the reservation system. For each seat, if it is occupied, other seat requests will be placed into the standby list.
+
+====== Priority Scheduling ======
+Three priority levels are created. Higher priority customers will be serviced first when reserving seats. Instead of choosing the front of the queue, the implementation will choose highest priority request, and then the earliest request.

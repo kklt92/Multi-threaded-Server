@@ -1,0 +1,15 @@
+.TH mts.1 "Dec 2014"
+.SH NAME
+Multi-threaded Server
+.SH DESCRIPTION
+This page describes the implementation to help failing budget airline upgrade their online reservation system. This implementation can handle multiple simultaneous connections through multi-threading using a worker-queue and thread pool.
+.SH Options
+.IP PriorityScheduling
+finish priority scheduling.
+.SH FILES
+The important files and source codes are described in this page. 
+.IP thread_pool.c
+.IP seats.c
+.IP semaphore.c
+.IP http_server.c
+.IP Makefile

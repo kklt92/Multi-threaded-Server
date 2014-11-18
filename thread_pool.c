@@ -23,6 +23,10 @@
 
 pthread_mutex_t seat_lock;
 
+/**
+ * single task information. 
+ * including `function`, and `argument`.
+ */
 typedef struct pool_task{
   void (*function)(void *);
   int argument;
@@ -30,7 +34,9 @@ typedef struct pool_task{
   struct pool_task *prev;
 } pool_task_t;
 
-
+/**
+ * thread pool 
+ */
 struct pool_t {
   m_sem_t *s;
   pthread_mutex_t lock;
@@ -99,6 +105,7 @@ pool_t *pool_create(int queue_size, int num_threads)
     pool->queue[i].prev = &(pool->queue[i]);
   }
 
+  /* initial semaphore and lock. */
   pool->s = (struct m_sem*)malloc(sizeof(struct m_sem));
   pthread_mutex_init(&pool->lock, NULL);
 
@@ -111,6 +118,7 @@ pool_t *pool_create(int queue_size, int num_threads)
 
   pthread_attr_init(&attr);
 
+  /* loop to create pthread */
   for(i=0; i<pool->thread_count; i++) {
     pthread_create(pool->threads+i, &attr, thread_do_work, (void*)pool);
   }
@@ -137,10 +145,13 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument, int pr
   curr->argument = *(int*)argument;
 
 
+  /* lock pool->queue */
   pthread_mutex_lock(&pool->lock);
   append_list(curr, &pool->queue[priority]);
 
+  /* unlock semaphore */
   sem_post(((struct pool_t*)pool)->s);
+  /* unlock pool->queue */
   pthread_mutex_unlock(&pool->lock);
 
 
@@ -161,6 +172,7 @@ int pool_destroy(pool_t *pool)
   
   printf("Running destroy\n");
 
+  /* force cancel all thread. */
   for(i=0; i<pool->thread_count; i++) {
     pthread_cancel(*(pool->threads+i));
   }
@@ -187,12 +199,14 @@ static void *thread_do_work(void *pool)
   int i;
 
   currT = NULL;
-
+  
+  /* loop to read task from queue. */
   while(1) {
     sem_wait(((struct pool_t*)pool)->s);
 
     pthread_mutex_lock(&((struct pool_t*)pool)->lock);
     currT = NULL;
+    /* read from high priority */
     for(i=0; i<PRIORITY_LEVEL; i++) {
       if(((struct pool_t*)pool)->queue[i].next != NULL) {
         currT = ((struct pool_t*)pool)->queue[i].next;
@@ -204,14 +218,9 @@ static void *thread_do_work(void *pool)
 
     sem_post(((struct pool_t*)pool)->s);
     
+    /* run function and free it immediately. */
     if(currT != NULL) {
-//      if(currT->function == NULL || currT->argument == 0) {
-//        printf("ERROR: currT->function: %x, argument: %d\n", currT->function, currT->argument);
-//      }
-//      else {
-        (currT->function)(&(currT->argument));
-//        printf("currT->function: %x, argument: %d\n", currT->function, currT->argument);
-//      }
+      (currT->function)(&(currT->argument));
       free(currT);
     }
 

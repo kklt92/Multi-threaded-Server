@@ -48,6 +48,7 @@ int sem_post(m_sem_t *s)
   s->value++;
 
   pthread_cond_signal(&(s->notify));
+  printf("hehe => %d\n", s->value);
 
   pthread_mutex_unlock(&(s->lock));
   return 0;

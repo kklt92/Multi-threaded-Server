@@ -109,7 +109,7 @@ pool_t *pool_create(int queue_size, int num_threads)
   pool->s = (struct m_sem*)malloc(sizeof(struct m_sem));
   pthread_mutex_init(&pool->lock, NULL);
 
-  sem_init(pool->s, 0, 1);
+  sem_init(pool->s, 0, 0);
 
   pthread_mutex_init(&seat_lock, NULL);
 
@@ -216,7 +216,6 @@ static void *thread_do_work(void *pool)
     }
     pthread_mutex_unlock(&((struct pool_t*)pool)->lock);
 
-    sem_post(((struct pool_t*)pool)->s);
     
     /* run function and free it immediately. */
     if(currT != NULL) {

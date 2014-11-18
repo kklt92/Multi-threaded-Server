@@ -9,8 +9,10 @@
 
 seat_t* seat_header = NULL;
 
+/* unuesd seat list. */
 static struct stdlist unused_list;
 
+/* request buffer. */
 static struct stdlist *req_buffer = NULL;
 
 char seat_state_to_char(seat_state_t);
@@ -45,10 +47,15 @@ static void put_unused_item(struct stdlist *item) {
   list_append(item, &unused_list);
 }
 
+/**
+ * list all seat 
+ */
 void list_seats(char* buf, int bufsize)
 {
   seat_t* curr = seat_header;
   int index = 0;
+  
+  /* lock seat linked list */
   pthread_mutex_lock(&seat_lock);
   while(curr != NULL && index < bufsize+ strlen("%d %c,"))
   {
@@ -58,6 +65,7 @@ void list_seats(char* buf, int bufsize)
       index = index + length;
     curr = curr->next;
   }
+  /* unlock seat linked list */
   pthread_mutex_unlock(&seat_lock);
   if (index > 0)
     snprintf(buf+index-1, bufsize-index-1, "\n");
@@ -72,6 +80,7 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
   {
     if(curr->id == seat_id)
     {
+      /* lock seat linked list */
       pthread_mutex_lock(&seat_lock);
       if(curr->state == AVAILABLE || (curr->state == PENDING && curr->customer_id == customer_id))
       {
@@ -82,6 +91,7 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
       }
       else
       {
+        /* lock standby list */
         pthread_mutex_lock(&stdlist_lock);
         if(standby_size && curr->state == PENDING) {
           struct stdlist *item = get_unused_item();
@@ -94,8 +104,10 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
 
           snprintf(buf, bufsize, "Seat unavailable\n\n");
         }
+        /* unlock standby list */
         pthread_mutex_unlock(&stdlist_lock);
       }
+      /*unlock seat linked list */
       pthread_mutex_unlock(&seat_lock);
 
       return;
@@ -106,6 +118,9 @@ void view_seat(char* buf, int bufsize,  int seat_id, int customer_id, int custom
   return;
 }
 
+/**
+ * confirm seat.
+ */
 void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
   seat_t* curr = seat_header;
@@ -113,6 +128,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
   {
     if(curr->id == seat_id)
     {
+      /* lock seat linked list */
       pthread_mutex_lock(&seat_lock);
       if(curr->state == PENDING && curr->customer_id == customer_id )
       {
@@ -120,7 +136,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
             curr->id, seat_state_to_char(curr->state));
         curr->state = OCCUPIED;
 
-
+        /* lock standby list */
         pthread_mutex_lock(&stdlist_lock);
         struct stdlist *item = curr->stdlist_pending.next;
         struct stdlist *next;
@@ -131,6 +147,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
           standby_size++;
           item = next;
         }
+        /* unlock standby list */
         pthread_mutex_unlock(&stdlist_lock);
       }
       else if(curr->customer_id != customer_id )
@@ -141,6 +158,7 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
       {
         snprintf(buf, bufsize, "No pending request\n\n");
       }
+      /* unlock seat linked list */
       pthread_mutex_unlock(&seat_lock);
 
       return;
@@ -152,6 +170,9 @@ void confirm_seat(char* buf, int bufsize, int seat_id, int customer_id, int cust
   return;
 }
 
+/**
+ * cancel seat
+ */
 void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_priority)
 {
   printf("Cancelling seat %d for user %d\n", seat_id, customer_id);
@@ -161,12 +182,14 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
   {
     if(curr->id == seat_id)
     {
+      /* lock seat linked list */
       pthread_mutex_lock(&seat_lock);
       if(curr->state == PENDING && curr->customer_id == customer_id )
       {
         snprintf(buf, bufsize, "Seat request cancelled: %d %c\n\n",
             curr->id, seat_state_to_char(curr->state));
-
+        
+        /* lock standby list */
         pthread_mutex_lock(&stdlist_lock);
         struct stdlist *item = curr->stdlist_pending.next;
         if(item != &curr->stdlist_pending) {
@@ -177,6 +200,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
         }else {
           curr->state = AVAILABLE;
         }
+        /* unlock standby list */
         pthread_mutex_unlock(&stdlist_lock);
 
       }
@@ -188,6 +212,7 @@ void cancel(char* buf, int bufsize, int seat_id, int customer_id, int customer_p
       {
         snprintf(buf, bufsize, "No pending request\n\n");
       }
+      /* unlock seat linked list */
       pthread_mutex_unlock(&seat_lock);
 
       return;
@@ -227,6 +252,7 @@ void load_seats(int number_of_seats, int sb_size)
 
   standby_size = sb_size;
 
+  /* initial mutex */
   pthread_mutex_init(&stdlist_lock, NULL);
 
   unused_list.next = unused_list.prev = &unused_list;

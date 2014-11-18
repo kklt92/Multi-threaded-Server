@@ -9,6 +9,9 @@
 //int sem_post(m_sem_t *s);
 //void sem_init(m_sem_t *s, int expected, int new_value);
 
+/**
+ * initial semaphore. get the semaphore->value 
+ */
 void sem_init(m_sem_t *s, int expected, int new_value) {
   s->value = new_value;
   pthread_mutex_init(&(s->lock), NULL);
@@ -16,6 +19,9 @@ void sem_init(m_sem_t *s, int expected, int new_value) {
 
 }
 
+/**
+ * semaphore wait. stop and wait for semaphore->notify.
+ */
 int sem_wait(m_sem_t *s)
 {
   pthread_mutex_lock(&(s->lock));
@@ -32,6 +38,9 @@ int sem_wait(m_sem_t *s)
   return 0;
 }
 
+/**
+ * semaphore post. continue and unlock semaphore->notify.
+ */
 int sem_post(m_sem_t *s)
 {
   pthread_mutex_lock(&(s->lock));

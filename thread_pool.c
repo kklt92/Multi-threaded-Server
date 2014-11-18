@@ -19,6 +19,8 @@
 #define MAX_THREADS 20
 #define STANDBY_SIZE 8
 
+#define PRIORITY_LEVEL 3
+
 pthread_mutex_t seat_lock;
 
 typedef struct pool_task{
@@ -33,10 +35,11 @@ struct pool_t {
   m_sem_t *s;
   pthread_mutex_t lock;
   pthread_t *threads;
-  pool_task_t *queue;
+  pool_task_t queue[PRIORITY_LEVEL];
   int thread_count;
   int task_queue_size_limit;
 };
+
 
 static void *thread_do_work(void *pool);
 
@@ -89,11 +92,12 @@ pool_t *pool_create(int queue_size, int num_threads)
 
   struct pool_t *pool = (struct pool_t*)malloc(sizeof(struct pool_t));
   pool->threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
-  pool->queue = (pool_task_t*)malloc(sizeof(pool_task_t));
-  pool->queue->function = NULL;
-  pool->queue->argument = 0;
-  pool->queue->next = NULL;
-  pool->queue->prev = pool->queue;
+  for(i=0; i<PRIORITY_LEVEL; i++) {
+    pool->queue[i].function = NULL;
+    pool->queue[i].argument = 0;
+    pool->queue[i].next = NULL;
+    pool->queue[i].prev = &(pool->queue[i]);
+  }
 
   pool->s = (struct m_sem*)malloc(sizeof(struct m_sem));
   pthread_mutex_init(&pool->lock, NULL);
@@ -120,7 +124,7 @@ pool_t *pool_create(int queue_size, int num_threads)
  * Add a task to the threadpool
  *
  */
-int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
+int pool_add_task(pool_t *pool, void (*function)(void *), void *argument, int priority)
 {
   int err = 0;
   pool_task_t *curr;
@@ -134,7 +138,7 @@ int pool_add_task(pool_t *pool, void (*function)(void *), void *argument)
 
 
   pthread_mutex_lock(&pool->lock);
-  append_list(curr, pool->queue);
+  append_list(curr, &pool->queue[priority]);
 
   sem_post(((struct pool_t*)pool)->s);
   pthread_mutex_unlock(&pool->lock);
@@ -180,6 +184,7 @@ int pool_destroy(pool_t *pool)
 static void *thread_do_work(void *pool)
 { 
   pool_task_t *currT;
+  int i;
 
   currT = NULL;
 
@@ -188,9 +193,12 @@ static void *thread_do_work(void *pool)
 
     pthread_mutex_lock(&((struct pool_t*)pool)->lock);
     currT = NULL;
-    if(((struct pool_t*)pool)->queue->next != NULL) {
-      currT = ((struct pool_t*)pool)->queue->next;
-      remove_list_node(currT, ((struct pool_t*)pool)->queue);
+    for(i=0; i<PRIORITY_LEVEL; i++) {
+      if(((struct pool_t*)pool)->queue[i].next != NULL) {
+        currT = ((struct pool_t*)pool)->queue[i].next;
+        remove_list_node(currT, &((struct pool_t*)pool)->queue[i]);
+        break;
+      }
     }
     pthread_mutex_unlock(&((struct pool_t*)pool)->lock);
 

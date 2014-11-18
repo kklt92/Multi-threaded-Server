@@ -1,6 +1,12 @@
 #ifndef _SEAT_OPERATIONS_H_
 #define _SEAT_OPERATIONS_H_
 
+struct stdlist {
+  int user_id;
+  struct stdlist *next;
+  struct stdlist *prev;
+};
+
 typedef enum 
 {
     AVAILABLE, 
@@ -14,10 +20,11 @@ typedef struct seat_struct
     int customer_id;
     seat_state_t state;
     struct seat_struct* next;
+    struct stdlist stdlist_pending;
 } seat_t;
 
 
-void load_seats(int);
+void load_seats(int, int);
 void unload_seats();
 
 void list_seats(char* buf, int bufsize);

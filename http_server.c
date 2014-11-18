@@ -64,7 +64,7 @@ int main(int argc,char *argv[])
 
 
     // Load the seats;
-    load_seats(num_seats); //TODO read from argv
+    load_seats(num_seats, 8); //TODO read from argv
 
     // set server address 
     memset(&serv_addr, '0', sizeof(serv_addr));
@@ -93,7 +93,7 @@ int main(int argc,char *argv[])
         //handle_connection(&connfd);
         
         // multi-threaded
-        pool_add_task(threadpool, (void*)&handle_connection, (void*)&connfd);
+        pool_add_task(threadpool, (void*)&handle_connection, (void*)&connfd, 1);
     }
 }
 
